@@ -1,1 +1,0 @@
-# Xolat-SDK-ReactNative
