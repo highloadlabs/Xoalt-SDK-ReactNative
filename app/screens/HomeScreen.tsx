@@ -1,19 +1,15 @@
 import React from 'react';
-import { View, Text,  StyleSheet } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/RootNavigator.tsx';
+import { View, Text, StyleSheet } from 'react-native';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Tabs'>;
-
-export const HomeScreen: React.FC<Props> = () => {
-    return (
-        <View style={styles.container}>
-            <Text style={styles.title}>🏠 Home Screen</Text>
-        </View>
-    );
-};
+export function HomeScreen() {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>🏠 Home Screen</Text>
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
-    container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    title: { fontSize: 22, marginBottom: 16 },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  title: { fontSize: 22, marginBottom: 16 },
 });

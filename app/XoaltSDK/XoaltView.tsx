@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo } from 'react';
-import { Dimensions, StyleSheet, View, ViewProps } from 'react-native';
-import { PixelRatio } from 'react-native';
+import React, { useEffect } from 'react';
+import { StyleSheet, View, ViewProps } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
 import uuid from 'react-native-uuid';
 import WebView from 'react-native-webview';
@@ -10,9 +9,15 @@ type XoaltViewProps = ViewProps & {
   width: number;
   height: number;
   prebidId: string;
+  onFetched?: (request: string, response: string) => void;
 };
 
-const fetchBanner = async (width: number, height: number, prebidId: string) => {
+const fetchBanner = async (
+  width: number,
+  height: number,
+  prebidId: string,
+  onFetched?: (request: string, response: string) => void,
+) => {
   const headers = new Headers();
   headers.append('Content-Type', 'application/json');
 
@@ -63,54 +68,108 @@ const fetchBanner = async (width: number, height: number, prebidId: string) => {
     body: JSON.stringify(raw),
   };
 
-  const response = await fetch('https://hb.xoalt.com/x-simb/', requestOptions);
-  const result = await response.json();
+  try {
+    const response = await fetch(
+      'https://hb.xoalt.com/x-simb/',
+      requestOptions,
+    );
+    const result = await response.json();
 
-  console.log(result);
+    if (onFetched) {
+      onFetched(
+        JSON.stringify(requestOptions, null, 2),
+        JSON.stringify(result, null, 2),
+      );
+    }
 
-  const seatBid = result.seatbid[0];
+    const seatBid = result.seatbid[0];
 
-  if (!seatBid) {
+    if (!seatBid) {
+      return null;
+    }
+
+    const bid = seatBid.bid[0];
+
+    if (!bid) {
+      return null;
+    }
+
+    return bid.adm;
+  } catch (err) {
+    if (onFetched) {
+      onFetched(JSON.stringify(requestOptions, null, 2), 'FAILED');
+    }
+
     return null;
   }
-
-  const bid = seatBid.bid[0];
-
-  if (!bid) {
-    return null;
-  }
-
-  return bid.adm;
 };
 
 export function XoaltView(props: XoaltViewProps) {
   const [html, setHtml] = React.useState(null);
+  const [layoutWidth, setLayoutWidth] = React.useState<number>(0);
 
-  const injected = useMemo(
+  const injected = React.useMemo(
     () => `
-          (function() {
-            let vp = document.querySelector('meta[name=viewport]');
-            
-            if (!vp) {
-              vp = document.createElement('meta');
-              vp.setAttribute('name', 'viewport');
-              document.head.appendChild(vp);
-            }
-            
-            const ww = window.innerWidth;
-            var mw = ${props.width};
-            var ratio =  ww / mw - 1;
-            
-            vp.setAttribute('content', 'initial-scale=' + ratio + ', maximum-scale=' + ratio + ', minimum-scale=' + ratio + ', user-scalable=no, width=' + ww);
-          })();
-          
-          true;
-        `,
-    [props.width],
+    (function() {
+      var meta = document.querySelector('meta[name="viewport"]');
+      if (!meta) {
+        meta = document.createElement('meta');
+        meta.name = 'viewport';
+        document.head.appendChild(meta);
+      }
+      meta.content = 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no';
+
+      document.documentElement.style.height = '100%';
+      document.body.style.margin = '0';
+      document.body.style.height = '100%';
+      document.body.style.position = 'relative';
+      document.body.style.overflow = 'hidden';
+
+      var NATIVE_W = ${props.width};
+      var NATIVE_H = ${props.height};
+
+      var fit = document.getElementById('__xoalt_fit');
+      if (!fit) {
+        fit = document.createElement('div');
+        fit.id = '__xoalt_fit';
+        fit.style.width = NATIVE_W + 'px';
+        fit.style.height = NATIVE_H + 'px';
+        fit.style.position = 'absolute';
+        fit.style.left = '50%';
+        fit.style.top = '50%';
+        fit.style.transformOrigin = 'left center';
+        document.body.appendChild(fit);
+
+        var nodes = Array.from(document.body.childNodes).filter(function(n){ return n !== fit; });
+        nodes.forEach(function(n){ fit.appendChild(n); });
+      }
+
+      function applyScale() {
+        var vw = document.documentElement.clientWidth || window.innerWidth;
+        var vh = document.documentElement.clientHeight || window.innerHeight;
+        var s = Math.min(vw / NATIVE_W, vh / NATIVE_H);
+
+        fit.style.transform = 'translate(-50%, -50%) scale(' + s + ')';
+      }
+
+      window.addEventListener('resize', applyScale);
+      applyScale();
+      setTimeout(applyScale, 100);
+      setTimeout(applyScale, 300);
+      setTimeout(applyScale, 800);
+    })();
+    true;
+  `,
+    [props.width, props.height],
   );
 
   useEffect(() => {
-    fetchBanner(props.width, props.height, props.prebidId).then(_html => {
+    fetchBanner(
+      props.width,
+      props.height,
+      props.prebidId,
+      props.onFetched,
+    ).then(_html => {
       setHtml(_html);
     });
   }, [props.width, props.height, props.prebidId]);
@@ -142,9 +201,12 @@ export function XoaltView(props: XoaltViewProps) {
   return (
     <View
       style={{
-        width: props.width / PixelRatio.get(),
-        height: props.height / PixelRatio.get(),
         ...styles.container,
+        height: layoutWidth * (props.height / props.width),
+      }}
+      onLayout={event => {
+        const { width: w } = event.nativeEvent.layout;
+        setLayoutWidth(w);
       }}
     >
       <WebView
@@ -156,17 +218,27 @@ export function XoaltView(props: XoaltViewProps) {
         userAgent={'XoaltSDK/1.0 (ReactNative)'}
         onShouldStartLoadWithRequest={handleNavigation}
         onOpenWindow={handleOpenWindow}
-        injectedJavaScript={injected}
-        scalesPageToFit={true} // Android: fit content to WebView
-        javaScriptEnabled
         automaticallyAdjustContentInsets={false}
-        contentMode="mobile" // iOS: use mobile viewport rules
+        injectedJavaScript={injected}
+        scalesPageToFit={false}
+        javaScriptEnabled
+        contentMode="mobile"
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { maxWidth: Dimensions.get('window').width },
+  container: { flex: 1, justifyContent: 'center' },
   webView: { flex: 1 },
+  controls: {
+    flex: 1,
+    padding: 20,
+    justifyContent: 'center',
+  },
+  output: {
+    marginTop: 20,
+    fontSize: 18,
+    fontWeight: '500',
+  },
 });

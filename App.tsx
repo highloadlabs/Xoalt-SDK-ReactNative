@@ -7,8 +7,6 @@ import { XoaltClickEvent, XoaltService } from './app/XoaltSDK';
 function App() {
     useEffect(() => {
         const xoaltListener = (event: XoaltClickEvent) => {
-            console.log(event);
-
             switch (event.prebidId) {
                 case '33958': {
                     navigate('Second');

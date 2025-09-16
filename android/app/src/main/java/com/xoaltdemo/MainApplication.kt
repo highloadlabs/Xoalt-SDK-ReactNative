@@ -36,6 +36,7 @@ class MainApplication : Application(), ReactApplication {
   override fun onCreate() {
     super.onCreate()
     loadReactNative(this)
+
     if (BuildConfig.DEBUG) {android.webkit.WebView.setWebContentsDebuggingEnabled(true);}
   }
 }

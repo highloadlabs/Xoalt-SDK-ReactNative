@@ -1,4 +1,4 @@
 export type XoaltClickEvent = {
-    url: string;
-    prebidId: string;
+  url: string;
+  prebidId: string;
 };
