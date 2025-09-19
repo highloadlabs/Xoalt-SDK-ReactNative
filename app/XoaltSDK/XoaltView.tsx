@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { StyleSheet, View, ViewProps } from 'react-native';
+import { Dimensions, StyleSheet, View, ViewProps } from 'react-native';
 import DeviceInfo from 'react-native-device-info';
 import uuid from 'react-native-uuid';
 import WebView from 'react-native-webview';
@@ -105,6 +105,8 @@ const fetchBanner = async (
 };
 
 export function XoaltView(props: XoaltViewProps) {
+  const window = Dimensions.get('window');
+
   const [html, setHtml] = React.useState(null);
   const [layoutWidth, setLayoutWidth] = React.useState<number>(0);
 
@@ -198,11 +200,19 @@ export function XoaltView(props: XoaltViewProps) {
     return null;
   }
 
+  const scale =
+    (0.9 *
+      Math.round(
+        (10 * Math.min(...[layoutWidth, window.width, window.height])) /
+          Math.max(props.width, props.height),
+      )) /
+    10;
+  console.log(layoutWidth, window.width, window.height, scale);
+
   return (
     <View
       style={{
         ...styles.container,
-        height: layoutWidth * (props.height / props.width),
       }}
       onLayout={event => {
         const { width: w } = event.nativeEvent.layout;
@@ -212,6 +222,8 @@ export function XoaltView(props: XoaltViewProps) {
       <WebView
         style={{
           ...styles.webView,
+          width: props.width * scale,
+          height: props.height * scale,
         }}
         originWhitelist={['*']}
         source={{ html, baseUrl: '' }}
@@ -229,7 +241,7 @@ export function XoaltView(props: XoaltViewProps) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center' },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   webView: { flex: 1 },
   controls: {
     flex: 1,

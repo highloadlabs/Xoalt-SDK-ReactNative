@@ -12,7 +12,7 @@ import {
 import { XoaltView } from '../XoaltSDK';
 
 export function DebugScreen() {
-  const window = Dimensions.get('window'); // in device-independent pixels (dp)
+  const window = Dimensions.get('window');
 
   const [tempWidth, setTempWidth] = useState('728');
   const [tempHeight, setTempHeight] = useState('90');
